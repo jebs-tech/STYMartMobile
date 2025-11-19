@@ -1,19 +1,30 @@
 import 'package:flutter/material.dart';
-import 'screens/menu.dart';
+import 'package:pbp_django_auth/pbp_django_auth.dart';
+import 'package:provider/provider.dart';
+import 'screens/login.dart';
 
 void main() {
-  runApp(const BolabaleStoreApp());
+  runApp(const STYMartApp());
 }
 
-class BolabaleStoreApp extends StatelessWidget {
-  const BolabaleStoreApp({super.key});
+class STYMartApp extends StatelessWidget {
+  const STYMartApp({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'STYMart',
-      theme: ThemeData(primarySwatch: Colors.blue),
-      home: MyHomePage(),
+    return Provider(
+      create: (_) {
+        CookieRequest request = CookieRequest();
+        return request;
+      },
+      child: MaterialApp(
+        title: 'STYMart',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSwatch(primarySwatch: Colors.blue)
+              .copyWith(secondary: Colors.blueAccent[400]),
+        ),
+        home: const LoginPage(),
+      ),
     );
   }
 }

@@ -1,5 +1,10 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:pbp_django_auth/pbp_django_auth.dart';
+import 'package:provider/provider.dart';
 import '../widgets/left_drawer.dart';
+import 'menu.dart';
+import '../utils/constants.dart';
 
 class ProductFormPage extends StatefulWidget {
   const ProductFormPage({super.key});
@@ -12,19 +17,22 @@ class _ProductFormPageState extends State<ProductFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   String _name = "";
-  int _price = 0;
+  double _price = 0;
   String _description = "";
   String? _thumbnail;
   String _category = "";
+  bool _promo = false;
   bool _isFeatured = false;
   int _stock = 0;
   String? _color;
-  String? _size; // 🔹 tambahkan variabel size
+  String? _size;
 
-  final List<String> _sizeOptions = ['S', 'M', 'L', 'XL', 'tidak ada']; // 🔹 pilihan ukuran
+  final List<String> _sizeOptions = ['S', 'M', 'L', 'XL', 'tidak ada'];
 
   @override
   Widget build(BuildContext context) {
+    final request = context.watch<CookieRequest>();
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text("Tambah Produk Baru"),
@@ -38,7 +46,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 🔹 NAMA PRODUK
+              // NAMA PRODUK
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Nama Produk",
@@ -56,22 +64,23 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   }
                   return null;
                 },
-                onSaved: (value) => _name = value!,
+                onChanged: (value) => _name = value,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 HARGA
+              // HARGA
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Harga (Rp)",
                   hintText: "Masukkan harga produk",
                 ),
-                keyboardType: TextInputType.number,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return "Harga tidak boleh kosong!";
                   }
-                  final number = int.tryParse(value);
+                  final number = double.tryParse(value);
                   if (number == null) {
                     return "Harga harus berupa angka!";
                   }
@@ -80,11 +89,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   }
                   return null;
                 },
-                onSaved: (value) => _price = int.parse(value!),
+                onChanged: (value) => _price = double.tryParse(value) ?? 0,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 STOK
+              // STOK
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Stok Produk",
@@ -104,11 +113,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   }
                   return null;
                 },
-                onSaved: (value) => _stock = int.parse(value!),
+                onChanged: (value) => _stock = int.tryParse(value) ?? 0,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 DESKRIPSI
+              // DESKRIPSI
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Deskripsi Produk",
@@ -127,11 +136,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   }
                   return null;
                 },
-                onSaved: (value) => _description = value!,
+                onChanged: (value) => _description = value,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 KATEGORI
+              // KATEGORI
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Kategori Produk",
@@ -146,18 +155,18 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   }
                   return null;
                 },
-                onSaved: (value) => _category = value!,
+                onChanged: (value) => _category = value,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 THUMBNAIL
+              // THUMBNAIL
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "URL Thumbnail (opsional)",
                   hintText: "Masukkan link gambar produk (http/https)",
                 ),
                 validator: (value) {
-                  if (value == null || value.isEmpty) return null; // boleh kosong
+                  if (value == null || value.isEmpty) return null;
                   final urlPattern =
                       r'^(http|https):\/\/([\w\-]+(\.[\w\-]+)+)([\w\-,@?^=%&:/~+#]*[\w\-,@?^=%&/~+#])?$';
                   if (!RegExp(urlPattern).hasMatch(value)) {
@@ -165,11 +174,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   }
                   return null;
                 },
-                onSaved: (value) => _thumbnail = value,
+                onChanged: (value) => _thumbnail = value,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 WARNA
+              // WARNA
               TextFormField(
                 decoration: const InputDecoration(
                   labelText: "Warna Produk (opsional)",
@@ -181,11 +190,11 @@ class _ProductFormPageState extends State<ProductFormPage> {
                   }
                   return null;
                 },
-                onSaved: (value) => _color = value,
+                onChanged: (value) => _color = value,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 SIZE DROPDOWN
+              // SIZE DROPDOWN
               DropdownButtonFormField<String>(
                 decoration: const InputDecoration(
                   labelText: "Ukuran Produk",
@@ -202,11 +211,22 @@ class _ProductFormPageState extends State<ProductFormPage> {
                 },
                 validator: (value) =>
                     value == null ? "Pilih ukuran produk!" : null,
-                onSaved: (value) => _size = value,
               ),
               const SizedBox(height: 16),
 
-              // 🔹 FEATURED SWITCH
+              // PROMO SWITCH
+              SwitchListTile(
+                title: const Text("Produk Promo"),
+                value: _promo,
+                onChanged: (bool value) {
+                  setState(() {
+                    _promo = value;
+                  });
+                },
+              ),
+              const SizedBox(height: 8),
+
+              // FEATURED SWITCH
               SwitchListTile(
                 title: const Text("Produk Unggulan (Featured)"),
                 value: _isFeatured,
@@ -218,7 +238,7 @@ class _ProductFormPageState extends State<ProductFormPage> {
               ),
               const SizedBox(height: 24),
 
-              // 🔹 TOMBOL SAVE
+              // TOMBOL SAVE
               Center(
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
@@ -226,42 +246,47 @@ class _ProductFormPageState extends State<ProductFormPage> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 40, vertical: 12),
                   ),
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      _formKey.currentState!.save();
+                  onPressed: () async {
+                    if (!_formKey.currentState!.validate()) return;
 
-                      showDialog(
-                        context: context,
-                        builder: (context) => AlertDialog(
-                          title: const Text("Produk Berhasil Ditambahkan "),
-                          content: Text(
-                            "Nama: $_name\n"
-                            "Harga: $_price\n"
-                            "Deskripsi: $_description\n"
-                            "Kategori: $_category\n"
-                            "Thumbnail: ${_thumbnail ?? '-'}\n"
-                            "Warna: ${_color ?? '-'}\n"
-                            "Ukuran: ${_size ?? '-'}\n"
-                            "Stok: $_stock\n"
-                            "Featured: ${_isFeatured ? 'Ya' : 'Tidak'}",
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.pop(context); // Tutup dialog
-                                setState(() {
-                                  // 🔹 Reset semua nilai variabel ke default
-                                  _formKey.currentState!.reset();
-                                  _isFeatured = false;
-                                  _size = null;
-                                });
-                              },
-                              child: const Text("OK"),
-                            ),
-                          ],
+                     final response = await request.postJson(
+                       ApiConfig.createProductUrl,
+                       jsonEncode({
+                        "name": _name,
+                        "price": _price,
+                        "description": _description,
+                        "thumbnail": _thumbnail ?? "",
+                        "category": _category,
+                        "promo": _promo,
+                        "is_featured": _isFeatured,
+                        "stock": _stock,
+                        "color": _color ?? "",
+                        "size": _size ?? "",
+                      }),
+                    );
+
+                    if (!context.mounted) return;
+
+                    if (response['status'] == 'success') {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Produk berhasil disimpan!"),
                         ),
                       );
-
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => MyHomePage()),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            response['message'] ??
+                                "Terdapat kesalahan, silakan coba lagi.",
+                          ),
+                        ),
+                      );
                     }
                   },
                   child: const Text(

@@ -72,3 +72,76 @@ Daftar produk pada halaman Shop ditampilkan dalam ListView.
 4. Bagaimana menyesuaikan warna tema agar aplikasi Football Shop punya identitas visual yang konsisten?
 
 Saya menyesuaikan parameter theme pada MaterialApp, seperti primaryColor, colorScheme, dan scaffoldBackgroundColor. Warna yang dipilih mengikuti branding toko (misalnya biru dan putih). Dengan menentukan tema di level aplikasi, semua widget yang memakai theme otomatis mengikuti warna tersebut sehingga tampilannya konsisten di setiap halaman.
+
+Tugas 9
+
+1. Pentingnya Model Dart untuk JSON
+
+Kita perlu membuat Model Dart (Class) untuk data JSON demi menjamin keamanan tipe (type safety), memanfaatkan Null Safety Dart, dan meningkatkan maintainability kode.
+
+Konsekuensi Tanpa Model (Menggunakan Map<String, dynamic> Langsung)
+
+Validasi tipe: Lemah. Harus melakukan casting manual. Kesalahan tipe hanya terdeteksi saat runtime dan bisa menyebabkan crash.
+Null safety: Berisiko. Data null dapat diakses tanpa pengecekan ketat, berpotensi memicu runtime error.
+Maintainability: Rendah. Kode berulang, bergantung pada string keys yang rentan typo, dan sulit direfaktor jika struktur API berubah.
+
+2. Fungsi package:http dan CookieRequest
+
+package:http → Klien HTTP dasar untuk GET/POST, tetapi tidak mengelola sesi/cookie secara otomatis.
+
+CookieRequest → Klien HTTP custom yang aware terhadap cookie. Menyimpan Session ID dan CSRF Token secara otomatis.
+
+Perbedaan peran: http adalah alat dasar komunikasi HTTP. CookieRequest menambahkan kecerdasan manajemen sesi di atas fungsi dasar http.
+
+3. Alasan instance CookieRequest Perlu Dibagikan
+
+Memelihara status sesi dari Django (Session ID) yang diterima saat login.
+Semua request selanjutnya harus memakai Session ID yang sama.
+Membagi satu instance CookieRequest (via Provider/Singleton) memastikan semua request otomatis terautentikasi.
+
+4. Konfigurasi Konektivitas Flutter-Django
+
+Tambahkan 10.0.2.2 → IP khusus emulator Android untuk mengakses localhost PC. Harus ada di ALLOWED_HOSTS.
+Aktifkan CORS → Karena Flutter dan Django beda origin. Tanpa CORS: request diblokir.
+Pengaturan SameSite/Cookie → Pengaturan cookie modern bisa memblokir pengiriman sesi. Atur SESSION_COOKIE_SAMESITE bila perlu.
+Izin internet Android → Tambahkan <uses-permission android:name="android.permission.INTERNET"/>. Tanpa ini: Connection refused.
+
+5. Mekanisme Pengiriman Data
+
+Flutter menerima input user.
+Data dimasukkan ke Model Dart.
+Model Dart dikonversi ke JSON melalui toJson().
+CookieRequest mengirim POST ke Django.
+Django mendeserialisasi JSON dan memprosesnya.
+Django merespons dengan JSON hasil.
+Flutter menerima respons, mengubah JSON ke Model Dart (fromJson()).
+UI menampilkan hasil.
+
+6. Mekanisme Autentikasi (Login, Register, Logout)
+
+Register: Flutter kirim POST → Django validasi → buat user → return 201.
+Login: Django verifikasi → membuat sesi → mengirim Set-Cookie → CookieRequest menyimpan sesi.
+Akses terautentikasi: Semua request CookieRequest otomatis menyertakan cookie sesi.
+Logout: Django menghapus sesi → CookieRequest membersihkan cookie lokal.
+
+7. Implementasi Step-by-Step
+A. Persiapan Server Django
+
+Jalankan Django (127.0.0.1:8000) dan konfigurasi CORS + ALLOWED_HOSTS.
+Buat endpoint /register/, /login/, /logout/ menggunakan mekanisme session.
+Definisikan model item + serializer + endpoint /api/items/ (GET, POST) dengan login_required.
+Buat endpoint /api/my-items/ untuk filter item berdasarkan request.user.
+
+B. Persiapan Klien Flutter
+
+Tambah izin INTERNET di AndroidManifest dan package http/provider di pubspec.yaml.
+Buat model Dart (ItemModel, UserModel) lengkap dengan fromJson/toJson.
+Implementasikan class CookieRequest sebagai singleton untuk manajemen sesi.
+Daftarkan instance CookieRequest ke Provider/DI utama di main.dart.
+Buat AuthService untuk register, login, logout menggunakan CookieRequest.
+Buat ItemService untuk fetchPublicItems dan fetchUserItems.
+Implementasi UI:
+Halaman login/register
+Halaman daftar item (ListView)
+Halaman item milik user (filtered)
+Halaman detail item (terima objek ItemModel sebagai argumen)
